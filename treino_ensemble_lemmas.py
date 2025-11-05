@@ -1,4 +1,4 @@
-# treino_ensemble_lemmas.py
+
 import os, sys, json, joblib, numpy as np, pandas as pd
 from typing import List, Tuple, Dict
 
@@ -52,22 +52,20 @@ def escolher_limiar(y_true: np.ndarray, p1: np.ndarray) -> Tuple[float, Dict[str
     return best_thr, info
 
 def treinar_componentes(X_tr, y_tr, X_va, y_va):
-    # Modelo A: TF-IDF palavra n-gramas + LogReg
+
     pipe_word = Pipeline([
         ("tfidf", TfidfVectorizer(analyzer="word", ngram_range=(1,3), min_df=1, max_df=0.95)),
         ("clf", LogisticRegression(max_iter=1000, class_weight="balanced", C=1.5, solver="liblinear", random_state=SEED))
     ])
     pipe_word.fit(X_tr, y_tr)
 
-    # Modelo B: TF-IDF caracteres n-gramas + LinearSVC calibrada
     pipe_char = Pipeline([
         ("tfidf", TfidfVectorizer(analyzer="char", ngram_range=(3,5), min_df=1, max_df=0.95)),
         ("svm", LinearSVC(C=1.0, random_state=SEED))
     ])
-    # Calibração para obter probabilidades
+
     pipe_char.fit(X_tr, y_tr)
-    # criar embeddings de saídas para calibrar com features fixas
-    # calibramos com CalibratedClassifierCV diretamente sobre features TF-IDF
+
     tfidf_char = pipe_char.named_steps["tfidf"]
     svm_char = pipe_char.named_steps["svm"]
     X_tr_char = tfidf_char.transform(X_tr)
@@ -75,7 +73,7 @@ def treinar_componentes(X_tr, y_tr, X_va, y_va):
     svm_cal = CalibratedClassifierCV(svm_char, method="sigmoid", cv=5)
     svm_cal.fit(X_tr_char, y_tr)
 
-    # Modelo C: embeddings em lemas + LogReg calibrada
+
     emb_model = SentenceTransformer(EMB_MODEL_NAME)
     E_tr = emb_model.encode(list(X_tr), convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False)
     E_va = emb_model.encode(list(X_va), convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False)
@@ -83,12 +81,12 @@ def treinar_componentes(X_tr, y_tr, X_va, y_va):
     lr_emb_cal = CalibratedClassifierCV(lr_emb, method="sigmoid", cv=5)
     lr_emb_cal.fit(E_tr, y_tr)
 
-    # probabilidades de validação
+ 
     pA = pipe_word.predict_proba(X_va)[:,1]
     pB = svm_cal.predict_proba(X_va_char)[:,1]
     pC = lr_emb_cal.predict_proba(E_va)[:,1]
 
-    # procurar pesos simples que maximizam F1 em validação
+
     melhor = {"f1": -1, "w": (1.0, 1.0, 1.0)}
     for wA in [0.5, 1.0, 1.5, 2.0]:
         for wB in [0.5, 1.0, 1.5, 2.0]:
@@ -113,7 +111,7 @@ def treinar_componentes(X_tr, y_tr, X_va, y_va):
     return artefactos
 
 def avaliar(art: dict, X_te, y_te):
-    # probabilidades dos três modelos
+ s
     pA = art["pipe_word"].predict_proba(X_te)[:,1]
 
     X_te_char = art["tfidf_char"].transform(X_te)
@@ -126,7 +124,7 @@ def avaliar(art: dict, X_te, y_te):
     wA, wB, wC = art["weights"]
     p_mix = (wA*pA + wB*pB + wC*pC) / (wA + wB + wC)
 
-    # avaliar com 0.50 e com limiar ótimo aprendido
+
     y_pred_050 = (p_mix >= 0.5).astype(int)
     y_pred_opt = (p_mix >= art["threshold"]).astype(int)
 
@@ -167,9 +165,9 @@ def main():
     X = df["lemmas"].tolist()
     y = df["label"].to_numpy()
 
-    # split treino e teste
+
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=SEED, stratify=y)
-    # dentro do treino, separar validação para afinar pesos e limiar
+
     X_tr_in, X_va, y_tr_in, y_va = train_test_split(X_tr, y_tr, test_size=0.25, random_state=SEED, stratify=y_tr)
     print(f"Tamanho treino interno: {len(X_tr_in)}  validação: {len(X_va)}  teste: {len(X_te)}")
 
@@ -179,11 +177,11 @@ def main():
     joblib.dump(art, MODEL_BIN)
     print(f"\nModelo ensemble guardado em {MODEL_BIN}")
 
-    # relatório simples
+  
     with open(REPORT_JSON, "w", encoding="utf-8") as f:
         json.dump({"weights": art["weights"], "threshold": art["threshold"]}, f, ensure_ascii=False, indent=2)
 
-    # exemplo prático
+  
     exemplos = [
         "minoria doente impor doença mental",
         "respeitar pessoa valor fundamental sociedade",
