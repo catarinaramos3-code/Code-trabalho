@@ -1,13 +1,11 @@
-# lematizar_frases_csv.py
+
 import pandas as pd
-from lematizar import lematizar_frases  # importa a tua função
+from lematizar import lematizar_frases  
 
-# === CONFIGURAÇÃO ===
-INPUT_FILE = "frases.csv"     # ficheiro de entrada com as frases
-OUTPUT_FILE = "lemmas.csv"    # ficheiro de saída com os lemas
-TEXT_COLUMN = "texto"         # nome da coluna que contém as frases
+INPUT_FILE = "frases.csv"     
+OUTPUT_FILE = "lemmas.csv"    
+TEXT_COLUMN = "texto"        
 
-# === LER O FICHEIRO ===
 try:
     df = pd.read_csv(INPUT_FILE, encoding="utf-8")
 except FileNotFoundError:
@@ -19,23 +17,20 @@ except Exception as e:
 if TEXT_COLUMN not in df.columns:
     raise SystemExit(f"❌ O CSV precisa de uma coluna chamada '{TEXT_COLUMN}'.")
 
-# === CONVERTER EM LISTA DE FRASES ===
 frases = df[TEXT_COLUMN].dropna().astype(str).tolist()
 
-# === PARAMETROS DE LEMATIZAÇÃO ===
 allowed = {"NOUN", "VERB", "ADJ", "ADV", "PROPN"}
 extra_stop = {"woke"}
 
-# === EXECUTAR LEMATIZAÇÃO ===
+
 res, lemas = lematizar_frases(
     frases,
-    guardar_csv=OUTPUT_FILE,      # grava automaticamente em lemmas.csv
+    guardar_csv=OUTPUT_FILE,      
     allowed_pos=allowed,
     remove_stopwords=True,
     extra_stopwords=extra_stop
 )
 
-# === MOSTRAR RESULTADOS ===
 for i, sent in enumerate(lemas, start=1):
     print(f"[lemas frase {i}] {sent}")
 
